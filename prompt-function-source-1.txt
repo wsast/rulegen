@@ -1,0 +1,88 @@
+I have an SAST product which processes rules in an XML-based format. This XML format describes input sources which are Java class methods (i.e. function calls which can return possibly tainted user inputs).
+
+An example of the XML format is:
+
+<function name="java.io.FileReader.read" languages="java" categories="*" description="The java.io.FileReader.read function may serve as a potential source of tainted user input due to its capability to read data from files, which could include content originating from untrusted sources.">
+	<signature prefix-types=".*?FileReader" virtual="true" names="read" param-count="3" />
+	<param pos="1" name="cbuf" types="char\[\]" traced="true" />
+	<param pos="2" name="off" types="int" />
+	<param pos="3" name="len" types="int" />
+	<return types="int" virtual="true" traced="true" />
+</function>
+
+The tags and attributes are interpreted as follows:
+
+Tag name: function
+Attribute name: name
+Purpose: The fully qualified path to the method including package name, namespace, class and method name
+
+Tag name: function
+Attribute name: description
+Purpose: A description of the method as relevant to its use by the application as a source of potentially user-supplied input.
+
+Tag name: signature
+Attribute name: prefix-types
+Purpose: Contains a regular expression which can be used to match the class name to which the input method belongs. This should be formatted as ".*?ClassName" so that any usage will be used, whether the class name is fully qualified (e.g. with package and namespace present), partially (just namespace, or inner namespace), or not qualified (e.g. imported only by name).
+
+Tag name: signature
+Attribute name: names
+Purpose: Contains a regular expression which may be used to match the method name. This should just contain the method name with no further qualification (e.g. "read"). In the case that the method is a constructor then the class name should be used.
+
+Tag name: signature
+Attribute name: param-count
+Purpose: This represents the number of parameters expected by the method in question. Since there are multiple functions in the same class with identical names this can help disambiguate. If there are variable numbers of parameters instead of the number of parameters a range can be specified (e.g. 1-3 for one, two or three parameters; 3-* for three or more parameters).
+
+Tag name: param
+Attribute name: pos
+Purpose: This represents the position (with the first parameter being at position 1) of the parameter.
+
+Tag name: param
+Attribute name: name
+Purpose: This is the name of the parameter, usually taken from documentation. This is not matched against anything it is purely specified to make understanding the rule easier.
+
+Tag name: param
+Attribute name: types
+Purpose: Contains a regular expression which can match the parameter type (e.g. "char", "int", "byte\[\]", ".*?BufferedReader"). If the type is a plain-old type (built in Java type, not a class) then the type is specified as a literal (e.g. "int"). If the type is a class then only the class name is specified and the fully qualified name is not used (e.g. "java.io.BufferedReader" is specified as ".*?BufferedReader") and the ".*?" regex prefix is used behind the class name to ensure fully qualified names still match. If the type is an array the square braces are escaped (e.g. "int\[\]", ".*?BufferedReader\[\]"). If the type is a generic specialization (e.g. "List<string>") then ".*" is used as the type name instead, so types=".*?List<string>" would not be specified and instead types=".*" would be used). For built in types which are actually classes (e.g. "String") the class name should be specified with a ".*?" prefix (e.g. ".*?String").
+
+Tag name: param
+Attribute name: traced
+Purpose: If the parameter can receive potentially tainted/user-supplied input (e.g. reads into a supplied array) then this should be set to "true" otherwise the attribute should omitted. If a parameter represents an output stream, writer, array or other object which is tainted by the method call then this value should be "true".
+
+Tag name: return
+Attribute name: types
+Purpose: Contains a regular expression which can match the method return type (e.g. "char", "int", "byte\[\]", ".*?BufferedReader"). If the type is a plain-old type (built in Java type, not a class) then the type is specified as a literal (e.g. "int"). If the type is a class then only the class name is specified and the fully qualified name is not used (e.g. "java.io.BufferedReader" is specified as ".*?BufferedReader") and the ".*?" regex prefix is used behind the class name to ensure fully qualified names still match. If the type is an array the square braces are escaped (e.g. "int\[\]", ".*?BufferedReader\[\]"). If the type is a generic specialization (e.g. "List<string>") then ".*" is used as the type name instead, so types=".*?List<string>" would not be specified and instead types=".*" would be used). For built in types which are actually classes (e.g. "String") the class name should be specified with a ".*?" prefix (e.g. ".*?String").
+
+Tag name: return
+Attribute name: traced
+Purpose: If the return value can be potentially tainted/user-supplied input then then this should be set to "true" otherwise the attribute should omitted.
+
+Another example of the XML format is:
+
+<function name="javax.crypto.Cipher.getInstance" languages="java" categories="*" description="The javax.crypto.Cipher.getInstance function is used to create a Cipher object for a specified transformation. This function may serve as a potential source of tainted user input if the transformation string represent a weak cipher.">
+    <signature prefix-types=".*?Cipher" virtual="true" names="getInstance" param-count="1" />
+    <param pos="1" name="transformation" types=".*?String" value=".*?MD5.*" />
+    <return types=".*?Cipher" virtual="true" traced="true" />
+</function>
+
+This introduces a new attribute which should be interpreted as follows:
+
+Tag name: param
+Attribute name: value
+Purpose: This attribute is optional and should only be set if a specific literal is required for the source to be considered a match. Specify a regular expression that matches all possibly weak, vulnerable, or dangerous input values rather than just one. For example, for the Cipher.getInstance() method, the transformation parameter might use a value attribute such as value=".*?(MD5|SHA1|DES|RC2|RC4|RC5|Blowfish|DESede|PBEWithMD5AndDES|PBEWithSHA1AndDESede|PBEWithSHA1AndRC2_40).*" to match any transformation string representing a weak cipher.
+
+Another example of the XML format is:
+
+<function name="java.sql.PreparedStatement.setString" languages="java" categories="*" description="The java.sql.PreparedStatement.setString method is used to set the designated parameter to the given Java String value. This method may serve as a potential source of tainted user input if the string value is derived from untrusted sources.">
+    <signature prefix-types=".*?PreparedStatement" virtual="true" names="setString" param-count="2" />
+    <param pos="1" name="parameterIndex" types="int" />
+    <param pos="2" name="x" types=".*?String" trace-instance="true" />
+    <return types="void" />
+</function>
+
+This introduces a new attribute which should be interpreted as follows:
+
+Tag name: param
+Attribute name: trace-instance
+Purpose: This attribute is optional and should be set to "true" if the underlying class instance should be marked as tainted when the source is matched. Tainting the underlying instance allows for other class instance properties and method calls to be considered as tainted as well as the class instance itself. In the example given if the PreparedStatement.setString() source is matched then the underlying PreparedStatement instance will be tainted. Source rules for constructors should generally set this attribute to "true".
+
+Please don't respond to this message.

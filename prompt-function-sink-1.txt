@@ -1,0 +1,80 @@
+I have an SAST product which processes rules in an XML-based format. This XML format describes vulnerable sinks which are Java class methods (i.e. function calls which can perform an adverse effect if malicious user-supplied inputs are passed to them). Several examples follow:
+
+<function name="java.nio.file.Files.write" languages="java" report="true" categories="*" title="Insecure File Write" description="Writes data to a file without proper validation, potentially allowing unauthorized or unsafe file write operations.">
+	<signature prefix-types=".*?Files" virtual="true" names="write" param-count="3"/>
+	<param pos="1" name="path" types=".*?Path" traced="true" />
+	<param pos="2" name="bytes" types=".*?byte\[\]" traced="true" />
+	<param pos="3" name="options" types=".*?OpenOption"  />
+</function>
+
+<function name="java.security.MessageDigest.getInstance" languages="java" report="true" categories="*"
+	title="Insecure Message Digest"
+	description="Retrieves a message digest object without proper validation, potentially using weak or insecure hashing algorithms.">
+	<signature prefix-types=".*?MessageDigest" virtual="true" names="getInstance" param-count="2" />
+	<param pos="1" name="algorithm" types=".*?String" traced="true" />
+	<param pos="2" name="provider" types=".*?String" traced="true" />
+</function>
+
+<function name="java.security.SecureRandom.setSeed" languages="java" report="true" categories="*" title="Insecure Random Number Generation" description="Sets the seed for a SecureRandom object without proper validation, potentially using weak or predictable sources.">
+  <signature prefix-types=".*?SecureRandom" virtual="true" names="setSeed" param-count="1"/>
+    <param pos="1" name="seed" types=".*" traced="true" />
+</function>
+
+
+<function name="java.security.SecureRandom.setSeed" languages="java" report="true" categories="*" title="Insecure Random Number Generation" description="Sets the seed for a SecureRandom object without proper validation, potentially using weak or predictable sources.">
+  <signature prefix-types=".*?SecureRandom" virtual="true" names="setSeed" param-count="1"/>
+    <param pos="1" name="seed" types=".*" traced="true" />
+</function>
+
+<function name="java.security.PrivateKey.getEncoded" languages="java" report="true" categories="*" title="Insecure Key Encoding" description="Retrieves the encoded form of the private key without proper validation, potentially exposing sensitive key material.">
+	<signature prefix-types=".*?PrivateKey" virtual="true" names="getEncoded" param-count="0"/>
+	<instance traced="true" />
+</function>
+
+For the above XML rules, the tags and attributes are interpreted as follows:
+
+Tag name: function
+Attribute name: name
+Purpose: The fully qualified path to the method including package name, namespace, class and method name
+
+Tag name: function
+Attribute name: title
+Purpose: A short title given to a vulnerability that can result from this method.
+
+Tag name: function
+Attribute name: description
+Purpose: A description of the method and why it could lead to a vulnerability.
+
+Tag name: signature
+Attribute name: prefix-types
+Purpose: Contains a regular expression which can be used to match the class name to which the input function belongs. This should be formatted as ".*?ClassName" so that any usage will be used, whether the class name is fully qualified (e.g. with package and namespace present), partially (just namespace, or inner namespace), or not qualified (e.g. imported only by name).
+
+Tag name: signature
+Attribute name: names
+Purpose: Contains a regular expression which may be used to match the function name. This should just contain the function name with no further qualification (e.g. "read"). In the case that the method is a constructor then the class name should be used.
+
+Tag name: signature
+Attribute name: param-count
+Purpose: This represents the number of parameters expected by the function in question. Since there are multiple functions in the same class with identical names this can help disambiguate. If there are variable numbers of parameters instead of the number of parameters a range can be specified (e.g. 1-3 for one, two or three parameters; 3-* for three or more parameters).
+
+Tag name: param
+Attribute name: pos
+Purpose: This represents the position (with the first parameter being at position 1) of the parameter.
+
+Tag name: param
+Attribute name: name
+Purpose: This is the name of the parameter, usually taken from documentation. This is not matched against anything it is purely specified to make understanding the rule easier.
+
+Tag name: param
+Attribute name: types
+Purpose: Contains a regular expression which can match the parameter type (e.g. "char", "int", "byte\[\]", ".*?BufferedReader"). If the type is a plain-old type (built in Java type, not a class) then the type is specified as a literal (e.g. "int"). If the type is a class then only the class name is specified and the fully qualified name is not used (e.g. "java.io.BufferedReader" is specified as ".*?BufferedReader") and the ".*?" regex prefix is used behind the class name to ensure fully qualified names still match. If the type is an array the square braces are escaped (e.g. "int\[\]", ".*?BufferedReader\[\]"). If the type is a generic specialization (e.g. "List<string>") then ".*" is used as the type name instead, so types=".*?List<string>" would not be specified and instead types=".*" would be used). For built in types which are actually classes (e.g. "String") the class name should be specified with a ".*?" prefix (e.g. ".*?String").
+
+Tag name: param
+Attribute name: traced
+Purpose: If the parameter value would cause a security vulnerability to occur if it was tainted with user-supplied input (for example, the query string parameter passed to an SQL method) this value should be set to "true" otherwise it should be omitted.
+
+Tag name: instance
+Attribute name: traced
+Purpose: If the number of parameters which a given sink method takes is 0 then include the literal tag <instance traced="true" /> as this specifies that the underlying class instance the method is called on should have been marked as traced.
+
+Please don't respond to this message.

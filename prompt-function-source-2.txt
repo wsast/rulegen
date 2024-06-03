@@ -1,0 +1,7 @@
+Please generate XML adhering to the strict specification provided for all methods within the class {class-name} that could represent a source of potentially user-supplied input.
+
+Please understand that I want ALL relevant methods that may return user-supplied input and not just one method unless there is only one relevant method. If in doubt produce more rather than less output. Most methods which return tainted input which have method names beginning with "get" or "read" are going to be valid candidates.
+
+Only include methods that read directly from an input source and return a value potentially influenced by this input. This distinction between sources that produce potentially tainted user-supplied input and sinks that receive already tainted inputs is crucial.
+
+Output the XML as a single block with no comments or commentary. Exclude methods that merely affect the instance state without returning tainted data. Please do not create any XML tags or attributes outside of what you have been instructed in the prompt or have deduced from the example XML.
